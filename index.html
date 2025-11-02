@@ -86,6 +86,9 @@
             <button id="tab-level-btn" class="tab-button flex-1 p-3 text-lg font-semibold rounded-t-lg" onclick="switchTab('level')">
                 Levels Generator
             </button>
+            <button id="tab-range-btn" class="tab-button flex-1 p-3 text-lg font-semibold rounded-t-lg" onclick="switchTab('range')">
+                Range Levels
+            </button>
         </div>
 
         <!-- --- TOOL 1: UNIFIED POSITIONAL SIZING CALCULATOR --- -->
@@ -226,6 +229,53 @@
                 <p id="formula-display" class="mt-4 text-sm text-gray-500 text-center"></p>
             </div>
         </div>
+
+        <!-- --- TOOL 3: RANGE PERCENTAGE LEVELS --- -->
+        <div id="range-calculator-tab" class="tab-content hidden">
+            <h2 class="text-2xl font-bold text-white mb-4">Range Percentage Levels</h2>
+            <p class="text-sm text-gray-400 mb-6">Calculates key price levels above and below the base price using percentage expansion/retracement of the input range.</p>
+
+            <!-- Input Fields Container -->
+            <div class="space-y-4 text-gray-300 bg-[#1e2329] p-4 rounded-xl shadow-inner mb-6">
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-white">1. Define Base and Range</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="flex flex-col">
+                            <label for="rangeBasePrice" class="text-sm font-medium mb-1">Base Price (Level)</label>
+                            <input type="number" id="rangeBasePrice" value="110500" min="1" step="any" class="p-3 rounded-lg focus:outline-none" required>
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="rangeSize" class="text-sm font-medium mb-1">Range Size (Distance)</label>
+                            <input type="number" id="rangeSize" value="392.7" min="0.1" step="any" class="p-3 rounded-lg focus:outline-none" required>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="calculateRangeLevels()" class="bg-[#58a6ff] text-white w-full py-3 font-bold rounded-lg hover:bg-[#79a6ff] transition-all">
+                    Generate Range Levels
+                </button>
+            </div>
+
+            <!-- Output Table -->
+            <div id="range-output-card" class="mt-8 pt-6 border-t border-gray-700">
+                <h2 class="text-xl font-semibold mb-4 text-white">Generated Levels</h2>
+                
+                <div id="range-error-message" class="text-red-500 text-center font-medium mb-4 hidden"></div>
+
+                <table class="min-w-full divide-y divide-gray-700 rounded-lg overflow-hidden border border-gray-700">
+                    <thead class="bg-[#1e2329]">
+                        <tr>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Level (%)</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Retracement (DOWN)</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Expansion (UP)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="range-output" class="bg-[#161b22] divide-y divide-gray-700 text-sm">
+                        <!-- Levels will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -268,6 +318,8 @@
                 calculateLotSize();
             } else if (tabId === 'level') {
                 calculateLevels();
+            } else if (tabId === 'range') {
+                calculateRangeLevels();
             }
         }
 
@@ -455,17 +507,93 @@
             }, 300); // Small delay to show the "calculating" state
         }
 
+        /* =========================================================
+         * RANGE PERCENTAGE LEVELS LOGIC
+         * ========================================================= */
+        
+        const RANGE_PERCENTAGES = [100, 50, 25]; // Corresponds to the columns in the image
+
+        function clearRangeError() {
+            document.getElementById('range-error-message').classList.add('hidden');
+            document.getElementById('range-error-message').textContent = '';
+        }
+
+        function displayRangeError(message) {
+            const errorElement = document.getElementById('range-error-message');
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+            document.getElementById('range-output').innerHTML = '';
+        }
+
+        function calculateRangeLevels() {
+            clearRangeError();
+            const basePrice = getValidatedNumber('rangeBasePrice');
+            const rangeSize = getValidatedNumber('rangeSize');
+            const outputElement = document.getElementById('range-output');
+            outputElement.innerHTML = '';
+
+            if (basePrice === null || rangeSize === null) {
+                // Do not show error on load if inputs are empty
+                return;
+            }
+
+            if (basePrice <= 0 || rangeSize <= 0) {
+                return displayRangeError("Base Price and Range Size must be positive numbers.");
+            }
+
+            let rangeHtml = '';
+
+            RANGE_PERCENTAGES.forEach(percent => {
+                const multiplier = percent / 100; // 100 -> 1.0, 50 -> 0.5, 25 -> 0.25
+                const offset = rangeSize * multiplier;
+
+                // Levels: Base Price +/- Offset
+                const levelDown = basePrice - offset;
+                const levelUp = basePrice + offset;
+                
+                // Determine class for styling based on the level importance
+                let classes = 'text-gray-200';
+                if (percent === 100) {
+                    classes = 'text-red-400 font-bold'; // Highlight 100% as the full range
+                } else if (percent === 50) {
+                    classes = 'text-yellow-400 font-semibold'; // Highlight 50% as midpoint
+                }
+
+                rangeHtml += `
+                    <tr class="hover:bg-[#1e2329] transition duration-150 ${classes}">
+                        <td class="px-3 py-3 text-center">${percent}%</td>
+                        <td class="px-3 py-3 text-center">${levelDown.toFixed(3)}</td>
+                        <td class="px-3 py-3 text-center">${levelUp.toFixed(3)}</td>
+                    </tr>
+                `;
+            });
+            
+            // Add the Base Price (0%) row for clarity
+            rangeHtml += `
+                <tr class="level-open hover:bg-[#3d444d] text-lg">
+                    <td class="px-3 py-3 text-center">Base Price</td>
+                    <td class="px-3 py-3 text-center font-bold" colspan="2">${basePrice.toFixed(3)}</td>
+                </tr>
+            `;
+
+            outputElement.innerHTML = rangeHtml;
+        }
+
+
         // --- Initial Load ---
         window.onload = function() {
             // Set initial defaults for the sizing tab and run calculation
             updateSizingDefaults(); 
             // Run levels calculation once so the table structure is populated
             calculateLevels(); 
+            // Run range calculation once
+            calculateRangeLevels();
             
             // Set initial active tab state (Sizing is default active)
             document.getElementById('tab-sizing-btn').classList.add('active');
             document.getElementById('sizing-calculator-tab').classList.remove('hidden');
             document.getElementById('level-calculator-tab').classList.add('hidden');
+            document.getElementById('range-calculator-tab').classList.add('hidden'); // Ensure new tab is hidden initially
         };
 
     </script>
