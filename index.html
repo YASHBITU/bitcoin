@@ -9,7 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* --- Unified Dark Theme (Based on Lot Calculator) --- */
+        /* --- Unified Dark Theme --- */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #0d1117; /* Dark background */
@@ -20,13 +20,13 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             border: 1px solid #30363d;
         }
-        input[type="number"] {
+        input[type="number"], select {
             background-color: #0d1117;
             border: 1px solid #30363d;
             color: #c9d1d9;
             transition: border-color 0.2s;
         }
-        input[type="number"]:focus {
+        input[type="number"]:focus, select:focus {
             border-color: #58a6ff; /* Blue focus ring */
             box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
         }
@@ -68,7 +68,7 @@
 </head>
 <body class="p-4 sm:p-8 flex items-center justify-center min-h-screen">
 
-    <div class="card p-6 sm:p-8 rounded-xl w-full max-w-2xl">
+    <div class="card p-6 sm:p-8 rounded-xl w-full max-w-3xl">
         <header class="text-center mb-6">
             <h1 class="text-4xl font-extrabold text-[#58a6ff] mb-2 tracking-wider">
                 BITOOLS
@@ -80,21 +80,31 @@
 
         <!-- Tab Navigation -->
         <div class="flex border-b border-[#30363d] mb-6">
-            <button id="tab-lot-btn" class="tab-button active flex-1 p-3 text-lg font-semibold rounded-t-lg" onclick="switchTab('lot')">
-                Position Sizing
+            <button id="tab-sizing-btn" class="tab-button active flex-1 p-3 text-lg font-semibold rounded-t-lg" onclick="switchTab('sizing')">
+                Positional Sizing
             </button>
             <button id="tab-level-btn" class="tab-button flex-1 p-3 text-lg font-semibold rounded-t-lg" onclick="switchTab('level')">
                 Levels Generator
             </button>
         </div>
 
-        <!-- --- TOOL 1: POSITION SIZING CALCULATOR --- -->
-        <div id="lot-calculator-tab" class="tab-content">
-            <h2 class="text-2xl font-bold text-white mb-4">BTC Position Sizing (Risk Check)</h2>
-            <p class="text-sm text-gray-400 mb-6">Calculates the necessary Lot Size to strictly limit your loss, based on your Stop Loss distance in pips.</p>
+        <!-- --- TOOL 1: UNIFIED POSITIONAL SIZING CALCULATOR --- -->
+        <div id="sizing-calculator-tab" class="tab-content">
+            <h2 class="text-2xl font-bold text-white mb-4">Unified Positional Sizing (Risk Check)</h2>
+            <p class="text-sm text-gray-400 mb-6">Calculates the necessary Lot Size to strictly limit your loss for the selected asset (BTC/Gold), based on your Stop Loss distance in pips.</p>
 
             <!-- Input Fields Container -->
             <div class="space-y-6 text-gray-300">
+                
+                <!-- Asset Selector -->
+                <div>
+                    <h3 class="text-xl font-semibold text-white mb-3 border-b border-gray-700 pb-2">Asset Selection</h3>
+                    <label for="assetSelect" class="text-sm font-medium mb-1">Select Asset</label>
+                    <select id="assetSelect" onchange="updateSizingDefaults()" class="w-full p-3 rounded-lg focus:outline-none">
+                        <option value="btc">Bitcoin (BTC)</option>
+                        <option value="gold">Gold (XAU/USD)</option>
+                    </select>
+                </div>
 
                 <!-- 1. Account Details -->
                 <div>
@@ -113,7 +123,7 @@
 
                 <!-- 2. Trade Details (Pips Method) -->
                 <div>
-                    <h3 class="text-xl font-semibold text-white mb-3 border-b border-gray-700 pb-2">2. BTC Pip Details</h3>
+                    <h3 class="text-xl font-semibold text-white mb-3 border-b border-gray-700 pb-2">2. Trade Pip Details</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="flex flex-col">
                             <label for="stopLossPips" class="text-sm font-medium mb-1">Stop Loss Distance (in Pips)</label>
@@ -124,7 +134,7 @@
                             <input type="number" id="pipValue" value="0.10" min="0.000001" step="any" class="p-3 rounded-lg focus:outline-none" required>
                         </div>
                     </div>
-                    <p class="text-xs text-gray-500 mt-2">Note: Pip Value is broker-dependent. E.g., a \$1.00 move per pip * 0.01 lot size = \$0.01/pip.</p>
+                    <p id="pip-note" class="text-xs text-gray-500 mt-2">Note: Pip Value is broker-dependent. For BTC, 1 Lot is often 1 BTC. Pip Value default is \$0.10.</p>
                 </div>
 
                 <button onclick="calculateLotSize()" class="button-primary w-full py-3 mt-4 text-white font-bold rounded-lg shadow-lg hover:shadow-xl transition-all">
@@ -133,7 +143,7 @@
             </div>
 
             <!-- Output Section -->
-            <div id="lot-results" class="mt-8 pt-6 border-t border-gray-700 space-y-4">
+            <div id="sizing-lot-results" class="mt-8 pt-6 border-t border-gray-700 space-y-4">
                 <h2 class="text-xl font-semibold text-white mb-4">3. Results</h2>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -148,14 +158,14 @@
                 </div>
 
                 <div class="p-4 bg-green-700 rounded-lg shadow-inner">
-                    <p class="text-sm font-medium text-white">Recommended BTC Position Size (Lot Size):</p>
+                    <p class="text-sm font-medium text-white">Recommended Position Size (Lot Size):</p>
                     <p id="positionSize" class="text-4xl font-extrabold text-white">0.0000 BTC</p>
                 </div>
                 
-                <div id="lot-error-message" class="text-red-500 text-center font-medium mt-4 hidden"></div>
+                <div id="sizing-error-message" class="text-red-500 text-center font-medium mt-4 hidden"></div>
             </div>
         </div>
-
+        
         <!-- --- TOOL 2: QUADRATIC LEVELS GENERATOR --- -->
         <div id="level-calculator-tab" class="tab-content hidden">
             <h2 class="text-2xl font-bold text-white mb-4">Quadratic Levels Generator</h2>
@@ -219,14 +229,32 @@
     </div>
 
     <script>
+        /* --- ASSET CONFIGURATION --- */
+        const ASSET_CONFIG = {
+            btc: {
+                pipValue: 0.10,
+                slPips: 5000,
+                unit: 'BTC',
+                note: 'Note: Pip Value is broker-dependent. For BTC, 1 Lot is often 1 BTC. Pip Value default is $0.10.',
+            },
+            gold: {
+                pipValue: 1.00,
+                slPips: 50,
+                unit: 'Lot (100oz)',
+                note: 'Note: For Gold (XAU/USD), 1.0 Lot is typically 100 oz. Pip Value default is $1.00.',
+            }
+        };
+
         /* =========================================================
          * UTILITY FUNCTIONS & TAB LOGIC
          * ========================================================= */
 
         function switchTab(tabId) {
+            // Hide all content and deactivate all buttons
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
 
+            // Activate the selected tab
             const targetContent = document.getElementById(tabId + '-calculator-tab');
             const targetButton = document.getElementById('tab-' + tabId + '-btn');
 
@@ -235,17 +263,31 @@
                 targetButton.classList.add('active');
             }
             
-            // Ensure levels recalculate if switching back to that tab
-            if (tabId === 'level') {
-                calculateLevels();
-            } else {
+            // Re-run calculations for the active tab
+            if (tabId === 'sizing') {
                 calculateLotSize();
+            } else if (tabId === 'level') {
+                calculateLevels();
             }
         }
 
+        /* --- SIZING TAB: ASSET DEFAULTS MANAGEMENT --- */
+
+        function updateSizingDefaults() {
+            const asset = document.getElementById('assetSelect').value;
+            const config = ASSET_CONFIG[asset];
+
+            // Update inputs with asset-specific defaults
+            document.getElementById('pipValue').value = config.pipValue.toFixed(2);
+            document.getElementById('stopLossPips').value = config.slPips;
+            document.getElementById('pip-note').textContent = config.note;
+
+            // Trigger calculation with new defaults
+            calculateLotSize();
+        }
+
         /* =========================================================
-         * LOT SIZE CALCULATOR LOGIC
-         * (Risk-Only Calculation, based on user's required version)
+         * LOT SIZE CALCULATOR LOGIC (UNIFIED)
          * ========================================================= */
 
         function getValidatedNumber(id) {
@@ -258,23 +300,26 @@
             return value;
         }
 
+        function clearLotError() {
+            document.getElementById('sizing-error-message').classList.add('hidden');
+            document.getElementById('sizing-error-message').textContent = '';
+        }
+
         function displayLotError(message) {
-            const errorElement = document.getElementById('lot-error-message');
+            const errorElement = document.getElementById('sizing-error-message');
             errorElement.textContent = message;
             errorElement.classList.remove('hidden');
             // Clear result fields on error
             document.getElementById('totalRiskAmount').textContent = '$0.00';
             document.getElementById('riskPerUnit').textContent = '$0.00';
-            document.getElementById('positionSize').textContent = '0.0000 BTC';
-        }
-
-        function clearLotError() {
-            document.getElementById('lot-error-message').classList.add('hidden');
-            document.getElementById('lot-error-message').textContent = '';
+            document.getElementById('positionSize').textContent = '0.0000 ' + ASSET_CONFIG[document.getElementById('assetSelect').value].unit;
         }
 
         function calculateLotSize() {
             clearLotError();
+            
+            const asset = document.getElementById('assetSelect').value;
+            const unit = ASSET_CONFIG[asset].unit;
 
             const balance = getValidatedNumber('accountBalance');
             const riskP = getValidatedNumber('riskPercent');
@@ -283,7 +328,7 @@
 
             // 1. Validate inputs
             if (balance === null || riskP === null || stopLossPips === null || pipValue === null) {
-                // Do not show error on load if inputs are empty, only if calculation is explicitly triggered with bad data
+                // Do not show error on load if inputs are empty
                 return; 
             }
 
@@ -316,7 +361,7 @@
             // 5. Update the UI
             document.getElementById('totalRiskAmount').textContent = `$${riskAmount.toFixed(2)}`;
             document.getElementById('riskPerUnit').textContent = `$${riskPerUnit.toFixed(2)}`;
-            document.getElementById('positionSize').textContent = `${positionSize.toFixed(4)} BTC`;
+            document.getElementById('positionSize').textContent = `${positionSize.toFixed(4)} ${unit}`;
         }
 
         /* =========================================================
@@ -412,10 +457,15 @@
 
         // --- Initial Load ---
         window.onload = function() {
-            // Set initial values and run calculation for the visible tab
-            calculateLotSize();
-            // Run levels once so the table structure is populated
+            // Set initial defaults for the sizing tab and run calculation
+            updateSizingDefaults(); 
+            // Run levels calculation once so the table structure is populated
             calculateLevels(); 
+            
+            // Set initial active tab state (Sizing is default active)
+            document.getElementById('tab-sizing-btn').classList.add('active');
+            document.getElementById('sizing-calculator-tab').classList.remove('hidden');
+            document.getElementById('level-calculator-tab').classList.add('hidden');
         };
 
     </script>
